@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode.pedroPathing.tests;
 
 import static com.pedropathing.api.Paths.line;
+import static org.firstinspires.ftc.teamcode.pedroPathing.Constants.foresightConfig;
+
 import com.pedropathing.algorithm.Foresight;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
@@ -13,9 +15,18 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.Arrays;
 
-@TeleOp(group = "4")
+/**
+ * Back-and-forth line stress test. Demonstrates per-path {@code limitVelocity} /
+ * {@code limitAcceleration} modifiers (disabled when {@link #LIMIT_VELOCITY} is non-positive).
+ */
+@TeleOp(name = "Line Test", group = "4")
 public class LineTest extends OpMode {
     public static double DISTANCE = 48;
+    /** Set &gt; 0 to cap path speed (in/s) via foresightConfig.limitVelocity. */
+    public static double LIMIT_VELOCITY = 0;
+    /** Set &gt; 0 to cap path acceleration via foresightConfig.limitAcceleration. */
+    public static double LIMIT_ACCELERATION = 0;
+
     public double loops = 0, lastLoop = 0, loopTime = 0;
     private Path line1, line2;
     private boolean forward;
@@ -25,13 +36,25 @@ public class LineTest extends OpMode {
     public void init() {
         follower = Constants.create(hardwareMap);
         follower.setPose(new Pose(72, 72, 0));
+        telemetry.addLine("Group 4 path test. Optional: set LIMIT_VELOCITY / LIMIT_ACCELERATION > 0.");
+        telemetry.update();
     }
 
     @Override
     public void start() {
-        line1 = line(new Pose(72,72, 0), new Pose(DISTANCE + 72,72, 0)).constant(0);
-        line2 = line(new Pose(DISTANCE + 72,72, 0), new Pose(72,72, 0)).constant(0);
+        line1 = applyLimits(line(new Pose(72, 72, 0), new Pose(DISTANCE + 72, 72, 0)).constant(0));
+        line2 = applyLimits(line(new Pose(DISTANCE + 72, 72, 0), new Pose(72, 72, 0)).constant(0));
         follower.follow(line1);
+    }
+
+    private Path applyLimits(Path path) {
+        if (LIMIT_VELOCITY > 0) {
+            path = path.with(foresightConfig.limitVelocity(LIMIT_VELOCITY));
+        }
+        if (LIMIT_ACCELERATION > 0) {
+            path = path.with(foresightConfig.limitAcceleration(LIMIT_ACCELERATION));
+        }
+        return path;
     }
 
     @Override
@@ -66,8 +89,10 @@ public class LineTest extends OpMode {
         telemetry.addData("velocity", follower.velocity().toVector2D().x());
         telemetry.addData("targetVelocity", foresight.getTargetVelocity());
         telemetry.addData("error", Math.max(follower.velocity().toVector2D().x() - foresight.getTargetVelocity(), 0));
+        telemetry.addData("LIMIT_VELOCITY", LIMIT_VELOCITY);
+        telemetry.addData("LIMIT_ACCELERATION", LIMIT_ACCELERATION);
 
-        telemetry.addData("Loop Time Hz", 1000/loopTime);
+        telemetry.addData("Loop Time Hz", 1000 / loopTime);
         telemetry.addData("Mode", follower.mode());
         telemetry.addData("Following?", follower.following());
         telemetry.addData("Busy", follower.isBusy());

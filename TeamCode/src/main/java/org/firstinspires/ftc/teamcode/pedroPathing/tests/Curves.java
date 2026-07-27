@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode.pedroPathing.tests;
 
 import static com.pedropathing.api.Paths.curve;
+import static org.firstinspires.ftc.teamcode.pedroPathing.Constants.foresightConfig;
+
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
@@ -11,9 +13,15 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@TeleOp(group = "4")
+/**
+ * Curve stress test. Centripetal authority needs plant {@code kA_y} (and friends) set in Constants.
+ */
+@TeleOp(name = "Curves", group = "4")
 public class Curves extends OpMode {
     public static double DISTANCE = 48;
+    public static double LIMIT_VELOCITY = 0;
+    public static double LIMIT_ACCELERATION = 0;
+
     public double loops = 0, lastLoop = 0, loopTime = 0;
     private Path forwards, backwards;
     private boolean forward;
@@ -23,12 +31,18 @@ public class Curves extends OpMode {
     public void init() {
         follower = Constants.create(hardwareMap);
         follower.setPose(new Pose(72, 72, 0));
+        telemetry.addLine("Group 4 curves. Needs plant kA (esp. kA_y) for geometric centripetal FF.");
+        telemetry.addLine("Optional LIMIT_VELOCITY / LIMIT_ACCELERATION > 0.");
+        telemetry.update();
     }
 
     @Override
     public void start() {
-        forwards = curve(new Pose(72,72), new Pose(Math.abs(DISTANCE) + 72,72), new Pose(Math.abs(DISTANCE) + 72,DISTANCE + 72)).
-                heading(new Interpolator() {
+        forwards = applyLimits(curve(
+                new Pose(72, 72),
+                new Pose(Math.abs(DISTANCE) + 72, 72),
+                new Pose(Math.abs(DISTANCE) + 72, DISTANCE + 72))
+                .heading(new Interpolator() {
                     @Override
                     public double interpolate(Curve curve, double t) {
                         return Math.PI;
@@ -38,10 +52,25 @@ public class Curves extends OpMode {
                     public double differentiate(Curve curve, double t) {
                         return 0;
                     }
-                });
-        backwards = curve(new Pose(Math.abs(DISTANCE) + 72,DISTANCE + 72), new Pose(Math.abs(DISTANCE) + 72,72), new Pose(72,72))
-                .heading(Interpolator.piecewise().until(0.5, Interpolator.tangent).until(1.0, Interpolator.constant(0)));
+                }));
+        backwards = applyLimits(curve(
+                new Pose(Math.abs(DISTANCE) + 72, DISTANCE + 72),
+                new Pose(Math.abs(DISTANCE) + 72, 72),
+                new Pose(72, 72))
+                .heading(Interpolator.piecewise()
+                        .until(0.5, Interpolator.tangent)
+                        .until(1.0, Interpolator.constant(0))));
         follower.follow(forwards);
+    }
+
+    private Path applyLimits(Path path) {
+        if (LIMIT_VELOCITY > 0) {
+            path = path.with(foresightConfig.limitVelocity(LIMIT_VELOCITY));
+        }
+        if (LIMIT_ACCELERATION > 0) {
+            path = path.with(foresightConfig.limitAcceleration(LIMIT_ACCELERATION));
+        }
+        return path;
     }
 
     @Override
@@ -71,7 +100,9 @@ public class Curves extends OpMode {
             forward = !forward;
         }
 
-        telemetry.addData("Loop Time Hz", 1000/loopTime);
+        telemetry.addData("LIMIT_VELOCITY", LIMIT_VELOCITY);
+        telemetry.addData("LIMIT_ACCELERATION", LIMIT_ACCELERATION);
+        telemetry.addData("Loop Time Hz", 1000 / loopTime);
         telemetry.addData("Mode", follower.mode());
         telemetry.addData("Following?", follower.following());
         telemetry.addData("Pose", follower.pose());

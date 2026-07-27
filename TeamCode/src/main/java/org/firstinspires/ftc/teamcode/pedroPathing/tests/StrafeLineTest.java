@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.pedroPathing.tests;
 
 import static com.pedropathing.api.Paths.line;
+import static org.firstinspires.ftc.teamcode.pedroPathing.Constants.foresightConfig;
 
 import com.pedropathing.algorithm.Foresight;
 import com.pedropathing.follower.Follower;
@@ -14,9 +15,15 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.Arrays;
 
-@TeleOp(group = "4")
+/**
+ * Lateral line stress test with optional per-path motion limits.
+ */
+@TeleOp(name = "Strafe Line Test", group = "4")
 public class StrafeLineTest extends OpMode {
     public static double DISTANCE = 48;
+    public static double LIMIT_VELOCITY = 0;
+    public static double LIMIT_ACCELERATION = 0;
+
     public double loops = 0, lastLoop = 0, loopTime = 0;
     private Path line1, line2;
     private boolean forward;
@@ -26,13 +33,26 @@ public class StrafeLineTest extends OpMode {
     public void init() {
         follower = Constants.create(hardwareMap);
         follower.setPose(new Pose(72, 72, 0));
+        telemetry.addLine("Group 4 lateral path test. Optional LIMIT_VELOCITY / LIMIT_ACCELERATION.");
+        telemetry.update();
     }
 
     @Override
     public void start() {
-        line1 = line(new Pose(72,72, 0), new Pose(DISTANCE + 72,72, 0)).constant(0);
-        line2 = line(new Pose(DISTANCE + 72,72, 0), new Pose(72,72, 0)).constant(0);
+        // Lateral lines in field y (robot starts heading 0).
+        line1 = applyLimits(line(new Pose(72, 72, 0), new Pose(72, DISTANCE + 72, 0)).constant(0));
+        line2 = applyLimits(line(new Pose(72, DISTANCE + 72, 0), new Pose(72, 72, 0)).constant(0));
         follower.follow(line1);
+    }
+
+    private Path applyLimits(Path path) {
+        if (LIMIT_VELOCITY > 0) {
+            path = path.with(foresightConfig.limitVelocity(LIMIT_VELOCITY));
+        }
+        if (LIMIT_ACCELERATION > 0) {
+            path = path.with(foresightConfig.limitAcceleration(LIMIT_ACCELERATION));
+        }
+        return path;
     }
 
     @Override
@@ -64,11 +84,12 @@ public class StrafeLineTest extends OpMode {
             forward = !forward;
         }
 
-        telemetry.addData("velocity", follower.velocity().toVector2D().x());
+        telemetry.addData("velocity", follower.velocity().toVector2D().y());
         telemetry.addData("targetVelocity", foresight.getTargetVelocity());
-        telemetry.addData("error", Math.max(follower.velocity().toVector2D().x() - foresight.getTargetVelocity(), 0));
+        telemetry.addData("LIMIT_VELOCITY", LIMIT_VELOCITY);
+        telemetry.addData("LIMIT_ACCELERATION", LIMIT_ACCELERATION);
 
-        telemetry.addData("Loop Time Hz", 1000/loopTime);
+        telemetry.addData("Loop Time Hz", 1000 / loopTime);
         telemetry.addData("Mode", follower.mode());
         telemetry.addData("Following?", follower.following());
         telemetry.addData("Busy", follower.isBusy());
