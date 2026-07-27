@@ -9,6 +9,19 @@ if (rootLocalProps.exists()) {
 include ':FtcRobotController'
 include ':TeamCode'
 
+// --- MarsCommonFtc modules (git submodule + nested RuckigJava) ---
+include ':WpiMath'
+project(':WpiMath').projectDir = file('MarsCommonFtc/WpiMath')
+
+include ':ControlLib'
+project(':ControlLib').projectDir = file('MarsCommonFtc/ControlLib')
+
+include ':ControlLab'
+project(':ControlLab').projectDir = file('MarsCommonFtc/ControlLab')
+
+include ':RuckigJava'
+project(':RuckigJava').projectDir = file('MarsCommonFtc/RuckigJava')
+
 // Build Mars PedroPathing from the local submodule instead of downloading jars.
 includeBuild('PedroPathing') {
     dependencySubstitution {

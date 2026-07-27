@@ -21,8 +21,22 @@ android {
     packagingOptions {
         jniLibs.useLegacyPackaging true
     }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+        }
+    }
 }
 
 dependencies {
     implementation project(':FtcRobotController')
+
+    // MarsCommonFtc (ControlLib shadow JAR embeds WpiMath + RuckigJava for robot use).
+    implementation project(path: ':ControlLib', configuration: 'shadow')
+    compileOnly project(':WpiMath')
+    testImplementation project(path: ':ControlLib', configuration: 'shadow')
+    testImplementation project(':WpiMath')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.13.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

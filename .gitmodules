@@ -1,3 +1,6 @@
 [submodule "PedroPathing"]
 	path = PedroPathing
 	url = https://github.com/Mars-Robotics-Association/PedroPathing.git
+[submodule "MarsCommonFtc"]
+	path = MarsCommonFtc
+	url = https://github.com/Mars-Robotics-Association/MarsCommonFtc.git
