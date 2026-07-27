@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.pedroPathing.identification;
 
 import android.annotation.SuppressLint;
+
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Vector2D;
@@ -13,12 +14,15 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import java.util.ArrayList;
 import java.util.List;
 
-@TeleOp(name = "Forward Braking Identification", group = "2")
-public class ForwardBrakingIdentification extends OpMode {
+/**
+ * Strafe (robot-y) braking profile identification for anisotropic
+ * {@code linearBrakeCoefficients(1,1)} / {@code quadraticBrakeCoefficients(1,1)}.
+ */
+@TeleOp(name = "Strafe Braking Identification", group = "2")
+public class StrafeBrakingIdentification extends OpMode {
     private static final double[] TEST_POWERS =
             {1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2};
     private static final double BRAKING_POWER = 0.2;
-
     private static final int DRIVE_TIME_MS = 1000;
 
     private enum State {
@@ -31,9 +35,9 @@ public class ForwardBrakingIdentification extends OpMode {
     }
 
     private static class BrakeRecord {
-        double timeMs;
-        Pose pose;
-        double velocity;
+        final double timeMs;
+        final Pose pose;
+        final double velocity;
 
         BrakeRecord(double timeMs, Pose pose, double velocity) {
             this.timeMs = timeMs;
@@ -43,14 +47,10 @@ public class ForwardBrakingIdentification extends OpMode {
     }
 
     private State state = State.START_MOVE;
-
     private final Timer timer = new Timer();
-
     private int iteration = 0;
-
     private Vector2D startPosition;
     private double measuredVelocity;
-
     private final List<double[]> velocityToBrakingDistance = new ArrayList<>();
     private final List<BrakeRecord> brakeData = new ArrayList<>();
     private Follower follower;
@@ -64,9 +64,9 @@ public class ForwardBrakingIdentification extends OpMode {
 
     @Override
     public void init_loop() {
-        telemetry.addLine("Forward braking ID: forward/back runs, then fixed low-power brake.");
-        telemetry.addLine("Use results for Matrix.diag entries at (0,0) — forward axis.");
-        telemetry.addLine("Pair with Strafe Braking Identification for anisotropic brakes.");
+        telemetry.addLine("Strafe braking ID: left/right runs, then reverse-power brake.");
+        telemetry.addLine("Use results for Matrix.diag entries at (1,1) — strafe axis.");
+        telemetry.addLine("Pair with Forward Braking Identification for anisotropic brakes.");
         telemetry.addLine("Leave at least 4-5 feet clear.");
         telemetry.update();
         follower.update();
@@ -93,7 +93,7 @@ public class ForwardBrakingIdentification extends OpMode {
                 }
 
                 double currentPower = TEST_POWERS[iteration];
-                follower.manual(direction * currentPower, 0, 0);
+                follower.manual(0, direction * currentPower, 0);
 
                 timer.reset();
                 state = State.WAIT_DRIVE_TIME;
@@ -102,7 +102,7 @@ public class ForwardBrakingIdentification extends OpMode {
 
             case WAIT_DRIVE_TIME: {
                 if (timer.milliseconds() >= DRIVE_TIME_MS) {
-                    measuredVelocity = follower.velocity().toVector2D().magnitude();
+                    measuredVelocity = Math.abs(lateralVelocity());
                     startPosition = follower.pose().toVector2D();
                     state = State.APPLY_BRAKE;
                 }
@@ -110,8 +110,8 @@ public class ForwardBrakingIdentification extends OpMode {
             }
 
             case APPLY_BRAKE: {
-                follower.manual(BRAKING_POWER * direction, 0, 0);
-
+                // Same pattern as ForwardBrakingIdentification: fixed low power while measuring stop.
+                follower.manual(0, BRAKING_POWER * direction, 0);
                 timer.reset();
                 state = State.WAIT_BRAKE_TIME;
                 break;
@@ -120,13 +120,11 @@ public class ForwardBrakingIdentification extends OpMode {
             case WAIT_BRAKE_TIME: {
                 double t = timer.milliseconds();
                 Pose currentPose = follower.pose();
-                double currentVelocity = follower.velocity().toVector2D().magnitude();
-
+                double currentVelocity = Math.abs(lateralVelocity());
                 brakeData.add(new BrakeRecord(t, currentPose, currentVelocity));
 
-
-                if (follower.velocity().toVector2D().dot(Vector2D.polar(direction,
-                        follower.pose().heading())) <= 0) {
+                Vector2D lateralUnit = Vector2D.polar(direction, follower.pose().heading() + Math.PI / 2);
+                if (follower.velocity().toVector2D().dot(lateralUnit) <= 0) {
                     state = State.RECORD;
                 }
                 break;
@@ -135,31 +133,28 @@ public class ForwardBrakingIdentification extends OpMode {
             case RECORD: {
                 Vector2D endPosition = follower.pose().toVector2D();
                 double brakingDistance = endPosition.minus(startPosition).magnitude();
+                velocityToBrakingDistance.add(new double[] {measuredVelocity, brakingDistance});
 
-                velocityToBrakingDistance.add(new double[]{measuredVelocity, brakingDistance});
-
-                telemetry.addLine(String.format("Test %d: v=%.3f  d=%.3f", iteration, measuredVelocity, brakingDistance));
+                telemetry.addLine(String.format("Test %d: v=%.3f  d=%.3f",
+                        iteration, measuredVelocity, brakingDistance));
 
                 iteration++;
                 state = State.START_MOVE;
-
                 break;
             }
 
             case DONE: {
+                follower.manual(0, 0, 0);
+                double[] coefficients = ForwardBrakingIdentification.quadraticFit(velocityToBrakingDistance);
 
-                double[] coefficients = quadraticFit(velocityToBrakingDistance);
-
-                telemetry.addLine("Tuning Complete (forward)");
-                telemetry.addLine("Set Constants diagonal (0,0) entries:");
-                telemetry.addData("Forward Linear Brake Coefficient", coefficients[0]);
-                telemetry.addData("Forward Quadratic Brake Coefficient", coefficients[1]);
+                telemetry.addLine("Tuning Complete (strafe)");
+                telemetry.addLine("Set Constants diagonal (1,1) entries:");
+                telemetry.addData("Strafe Linear Brake Coefficient", coefficients[0]);
+                telemetry.addData("Strafe Quadratic Brake Coefficient", coefficients[1]);
                 for (BrakeRecord record : brakeData) {
                     Pose p = record.pose;
                     telemetry.addLine(String.format("t=%.0f ms, x=%.2f, y=%.2f, θ=%.2f, v=%.2f",
-                            record.timeMs, p.x(), p.y(),
-                            p.heading(),
-                            record.velocity));
+                            record.timeMs, p.x(), p.y(), p.heading(), record.velocity));
                 }
                 break;
             }
@@ -167,60 +162,8 @@ public class ForwardBrakingIdentification extends OpMode {
         telemetry.update();
     }
 
-    public static double[] quadraticFit(List<double[]> points) {
-        double sumX2 = 0, sumX3 = 0, sumX4 = 0;
-        double sumXY = 0, sumX2Y = 0;
-
-        for (double[] point : points) {
-            double x = point[0];
-            double y = point[1];
-
-            sumX2 += x * x;
-            sumX3 += x * x * x;
-            sumX4 += x * x * x * x;
-            sumXY += x * y;
-            sumX2Y += x * x * y;
-        }
-
-        double[][] matrix = {
-                {sumX2, sumX3},
-                {sumX3, sumX4}
-        };
-
-        double[] constants = {sumXY, sumX2Y};
-
-        return solveLinearSystem(matrix, constants); // returns {b, a}
-    }
-
-    private static double[] solveLinearSystem(double[][] A, double[] B) {
-        int n = B.length;
-        double[] X = new double[n];
-        double detA = determinant(A);
-
-        if (Math.abs(detA) < 1e-10) {
-            throw new IllegalArgumentException("Matrix is singular or nearly singular");
-        }
-
-        for (int i = 0; i < n; i++) {
-            double[][] Ai = replaceColumn(A, B, i);
-            X[i] = determinant(Ai) / detA;
-        }
-
-        return X;
-    }
-
-    private static double determinant(double[][] matrix) {
-        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
-    }
-
-    private static double[][] replaceColumn(double[][] matrix, double[] column, int colIndex) {
-        double[][] newMatrix = new double[matrix.length][matrix[0].length];
-
-        for (int i = 0; i < matrix.length; i++) {
-            System.arraycopy(matrix[i], 0, newMatrix[i], 0, matrix[i].length);
-            newMatrix[i][colIndex] = column[i];
-        }
-
-        return newMatrix;
+    private double lateralVelocity() {
+        return follower.velocity().toVector2D()
+                .dot(Vector2D.polar(1, follower.pose().heading() + Math.PI / 2));
     }
 }
