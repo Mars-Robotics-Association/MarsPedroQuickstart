@@ -20,7 +20,9 @@ import java.util.Locale;
  * Phase 2: constant-power step for {@code kA = tau / K} (unscaled plant acceleration gain).
  *
  * <p>Copy results into {@code Constants.foresightConfig} as {@code kS_x/kV_x/kA_x} or
- * {@code kS_y/kV_y/kA_y}. Run group 3 feedback tuners after plant gains are set.
+ * {@code kS_y/kV_y/kA_y}. Plant {@code kA} multiplies geometric centripetal acceleration only;
+ * tangential schedule accel uses {@code brakeAccelFeedforward}. Run group 3 feedback tuners after
+ * plant gains are set.
  */
 abstract class AxisPlantIdentification extends OpMode {
     /** Steady-state commanded powers (magnitude). Direction alternates each step. */
@@ -72,6 +74,7 @@ abstract class AxisPlantIdentification extends OpMode {
         telemetry.addLine("Leave room — motion alternates direction between power steps.");
         telemetry.addLine("After finish, set kS_" + axisSuffix() + " / kV_" + axisSuffix()
                 + " / kA_" + axisSuffix() + " in Constants.foresightConfig.");
+        telemetry.addLine("Plant kA is for curve centripetal FF, not brake stop authority.");
         telemetry.addLine("Then re-run group 3 feedback auto-tuners.");
         telemetry.update();
         follower.update();

@@ -43,6 +43,7 @@ public class StrafeVelocityIdentification extends OpMode {
     @Override
     public void init_loop() {
         telemetry.addLine("Group 2: max strafe velocity → maxAchievableStrafeVelocity.");
+        telemetry.addLine("Max vel/decel shape the always-on v*(s) schedule used in group 4.");
         telemetry.addLine("Runs at 1 power for " + DISTANCE + " in left; then coasts and reports average speed.");
         telemetry.addLine("Leave room for inertia after cut power. Full battery recommended.");
         telemetry.addLine("Next: Decel, Braking, Plant IDs (x and y); then group 3 feedback.");

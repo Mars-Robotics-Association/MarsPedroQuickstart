@@ -45,6 +45,7 @@ public class ForwardVelocityIdentification extends OpMode {
         telemetry.addLine("Group 2: max forward velocity → maxAchievableForwardVelocity.");
         telemetry.addLine("Runs at 1 power for " + DISTANCE + " in forward; then coasts and reports average speed.");
         telemetry.addLine("Leave room for inertia after cut power. Full battery recommended.");
+        telemetry.addLine("Max vel/decel shape the always-on v*(s) schedule used in group 4.");
         telemetry.addLine("Next: Strafe Velocity, then Decel, Braking, Plant IDs; then group 3.");
         telemetry.addData("pose", follower.pose());
         telemetry.update();

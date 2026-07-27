@@ -16,8 +16,9 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import java.util.Arrays;
 
 /**
- * Back-and-forth line stress test. Demonstrates per-path {@code limitVelocity} /
- * {@code limitAcceleration} modifiers (disabled when {@link #LIMIT_VELOCITY} is non-positive).
+ * Back-and-forth line stress test. Demonstrates per-path motion limit modifiers (disabled when
+ * the corresponding static is non-positive). Limits feed the always-on arc-length schedule
+ * {@code v*(s)}, not only an online coast clamp.
  */
 @TeleOp(name = "Line Test", group = "4")
 public class LineTest extends OpMode {
@@ -26,6 +27,8 @@ public class LineTest extends OpMode {
     public static double LIMIT_VELOCITY = 0;
     /** Set &gt; 0 to cap path acceleration via foresightConfig.limitAcceleration. */
     public static double LIMIT_ACCELERATION = 0;
+    /** Set &gt; 0 to curvature-limit speed via foresightConfig.limitLateralAcceleration. */
+    public static double LIMIT_LATERAL_ACCELERATION = 0;
 
     public double loops = 0, lastLoop = 0, loopTime = 0;
     private Path line1, line2;
@@ -36,7 +39,8 @@ public class LineTest extends OpMode {
     public void init() {
         follower = Constants.create(hardwareMap);
         follower.setPose(new Pose(72, 72, 0));
-        telemetry.addLine("Group 4 path test. Optional: set LIMIT_VELOCITY / LIMIT_ACCELERATION > 0.");
+        telemetry.addLine("Group 4 path test. Optional LIMIT_VELOCITY / LIMIT_ACCELERATION /");
+        telemetry.addLine("LIMIT_LATERAL_ACCELERATION > 0 shape the v*(s) schedule.");
         telemetry.update();
     }
 
@@ -53,6 +57,9 @@ public class LineTest extends OpMode {
         }
         if (LIMIT_ACCELERATION > 0) {
             path = path.with(foresightConfig.limitAcceleration(LIMIT_ACCELERATION));
+        }
+        if (LIMIT_LATERAL_ACCELERATION > 0) {
+            path = path.with(foresightConfig.limitLateralAcceleration(LIMIT_LATERAL_ACCELERATION));
         }
         return path;
     }
@@ -87,10 +94,14 @@ public class LineTest extends OpMode {
         }
 
         telemetry.addData("velocity", follower.velocity().toVector2D().x());
+        telemetry.addData("plannedVelocity", foresight.getPlannedVelocity());
+        telemetry.addData("plannedAcceleration", foresight.getPlannedAcceleration());
         telemetry.addData("targetVelocity", foresight.getTargetVelocity());
+        telemetry.addData("tangentialAccel", foresight.getTangentialAccel());
         telemetry.addData("error", Math.max(follower.velocity().toVector2D().x() - foresight.getTargetVelocity(), 0));
         telemetry.addData("LIMIT_VELOCITY", LIMIT_VELOCITY);
         telemetry.addData("LIMIT_ACCELERATION", LIMIT_ACCELERATION);
+        telemetry.addData("LIMIT_LATERAL_ACCELERATION", LIMIT_LATERAL_ACCELERATION);
 
         telemetry.addData("Loop Time Hz", 1000 / loopTime);
         telemetry.addData("Mode", follower.mode());

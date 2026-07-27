@@ -16,13 +16,14 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import java.util.Arrays;
 
 /**
- * Lateral line stress test with optional per-path motion limits.
+ * Lateral line stress test with optional per-path motion limits that feed the arc-length schedule.
  */
 @TeleOp(name = "Strafe Line Test", group = "4")
 public class StrafeLineTest extends OpMode {
     public static double DISTANCE = 48;
     public static double LIMIT_VELOCITY = 0;
     public static double LIMIT_ACCELERATION = 0;
+    public static double LIMIT_LATERAL_ACCELERATION = 0;
 
     public double loops = 0, lastLoop = 0, loopTime = 0;
     private Path line1, line2;
@@ -33,7 +34,8 @@ public class StrafeLineTest extends OpMode {
     public void init() {
         follower = Constants.create(hardwareMap);
         follower.setPose(new Pose(72, 72, 0));
-        telemetry.addLine("Group 4 lateral path test. Optional LIMIT_VELOCITY / LIMIT_ACCELERATION.");
+        telemetry.addLine("Group 4 lateral path test. Optional LIMIT_VELOCITY /");
+        telemetry.addLine("LIMIT_ACCELERATION / LIMIT_LATERAL_ACCELERATION shape v*(s).");
         telemetry.update();
     }
 
@@ -51,6 +53,9 @@ public class StrafeLineTest extends OpMode {
         }
         if (LIMIT_ACCELERATION > 0) {
             path = path.with(foresightConfig.limitAcceleration(LIMIT_ACCELERATION));
+        }
+        if (LIMIT_LATERAL_ACCELERATION > 0) {
+            path = path.with(foresightConfig.limitLateralAcceleration(LIMIT_LATERAL_ACCELERATION));
         }
         return path;
     }
@@ -85,9 +90,13 @@ public class StrafeLineTest extends OpMode {
         }
 
         telemetry.addData("velocity", follower.velocity().toVector2D().y());
+        telemetry.addData("plannedVelocity", foresight.getPlannedVelocity());
+        telemetry.addData("plannedAcceleration", foresight.getPlannedAcceleration());
         telemetry.addData("targetVelocity", foresight.getTargetVelocity());
+        telemetry.addData("tangentialAccel", foresight.getTangentialAccel());
         telemetry.addData("LIMIT_VELOCITY", LIMIT_VELOCITY);
         telemetry.addData("LIMIT_ACCELERATION", LIMIT_ACCELERATION);
+        telemetry.addData("LIMIT_LATERAL_ACCELERATION", LIMIT_LATERAL_ACCELERATION);
 
         telemetry.addData("Loop Time Hz", 1000 / loopTime);
         telemetry.addData("Mode", follower.mode());
