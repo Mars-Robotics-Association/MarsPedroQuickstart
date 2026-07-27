@@ -23,7 +23,7 @@ import java.util.ArrayList;
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/13/2024
  */
-@TeleOp(group = "2")
+@TeleOp(name = "Forward Velocity Identification", group = "2")
 public class ForwardVelocityIdentification extends OpMode {
     private final ArrayList<Double> velocities = new ArrayList<>();
     public static double DISTANCE = 48;
@@ -42,9 +42,10 @@ public class ForwardVelocityIdentification extends OpMode {
     /** This initializes the drive motors as well as the cache of velocities. */
     @Override
     public void init_loop() {
-        telemetry.addLine("The robot will run at 1 power until it reaches " + DISTANCE + " inches forward.");
-        telemetry.addLine("Make sure you have enough room, since the robot has inertia after cutting power.");
-        telemetry.addLine("After running the distance, the robot will cut power from the drivetrain and display the forward velocity.");
+        telemetry.addLine("Group 2: max forward velocity → maxAchievableForwardVelocity.");
+        telemetry.addLine("Runs at 1 power for " + DISTANCE + " in forward; then coasts and reports average speed.");
+        telemetry.addLine("Leave room for inertia after cut power. Full battery recommended.");
+        telemetry.addLine("Next: Strafe Velocity, then Decel, Braking, Plant IDs; then group 3.");
         telemetry.addData("pose", follower.pose());
         telemetry.update();
         follower.update();

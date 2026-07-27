@@ -20,7 +20,7 @@ import java.util.ArrayList;
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/13/2024
  */
-@TeleOp(group = "2")
+@TeleOp(name = "Strafe Deceleration Identification", group = "2")
 public class StrafeDecelerationIdentification extends OpMode {
     private final ArrayList<Double> accelerations = new ArrayList<>();
     public static double VELOCITY = 30;
@@ -42,10 +42,10 @@ public class StrafeDecelerationIdentification extends OpMode {
     /** This initializes the drive motors as well as the cache of velocities. */
     @Override
     public void init_loop() {
-        telemetry.addLine("The robot will run to the left until it reaches " + VELOCITY + " inches per second.");
-        telemetry.addLine("Then, it will cut power from the drivetrain and roll to a stop.");
-        telemetry.addLine("Make sure you have enough room.");
-        telemetry.addLine("After stopping, the max achievable strafe deceleration (natural deceleration) will be displayed.");
+        telemetry.addLine("Group 2: free strafe decel → maxAchievableStrafeDeceleration.");
+        telemetry.addLine("Accelerates laterally to " + VELOCITY + " in/s, cuts power, measures coast deceleration.");
+        telemetry.addLine("Leave enough room. Use abs value in Constants.");
+        telemetry.addLine("Order: Velocity → Decel → Braking → Plant; then group 3.");
         telemetry.update();
         follower.update();
     }
