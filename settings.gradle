@@ -1,2 +1,18 @@
+// Propagate Android SDK location into the included PedroPathing build.
+// Composite builds do not inherit the root local.properties.
+def rootLocalProps = new File(rootDir, 'local.properties')
+def pedroLocalProps = new File(rootDir, 'PedroPathing/local.properties')
+if (rootLocalProps.exists()) {
+    pedroLocalProps.text = rootLocalProps.text
+}
+
 include ':FtcRobotController'
 include ':TeamCode'
+
+// Build Mars PedroPathing from the local submodule instead of downloading jars.
+includeBuild('PedroPathing') {
+    dependencySubstitution {
+        substitute module('com.pedropathing:core') using project(':core')
+        substitute module('com.pedropathing:revhub') using project(':revhub')
+    }
+}
