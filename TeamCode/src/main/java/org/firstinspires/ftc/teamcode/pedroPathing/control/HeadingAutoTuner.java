@@ -1,17 +1,26 @@
 package org.firstinspires.ftc.teamcode.pedroPathing.control;
 
 import android.annotation.SuppressLint;
+
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import com.pedropathing.utils.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-@TeleOp(group = "3")
+/**
+ * Designs heading PID after plant identification. Foresight and ManualDrive heading
+ * lock use derivative-on-measurement ({@code -kD · ω}), so suggested kD is applied to
+ * measured angular velocity, not finite-differenced heading error.
+ * Optional: {@code Controller.pid(kP, kI, kD).iZone(...).maxIntegral(...)} when enabling integral.
+ */
+@TeleOp(name = "Heading Auto Tuner", group = "3")
 public class HeadingAutoTuner extends OpMode {
     private static final double ALPHA_LARGE = 0.6;
     private static final double ALPHA_SMALL = 0.9;
@@ -40,8 +49,10 @@ public class HeadingAutoTuner extends OpMode {
 
     @Override
     public void init_loop() {
-        telemetry.addLine("This will turn continuously in place for " + RUNTIME + " seconds.");
-        telemetry.addLine("Make sure you have enough room.");
+        telemetry.addLine("Group 3: heading feedback (run after group 2 plant ID).");
+        telemetry.addLine("Turns in place for " + RUNTIME + " s. Leave room.");
+        telemetry.addLine("Put kP/kD on foresightConfig.headingController (DoM uses measured ω).");
+        telemetry.addLine("If using kI, add .iZone(...) and .maxIntegral(...) on the PID.");
         telemetry.update();
         follower.update();
     }
@@ -59,30 +70,27 @@ public class HeadingAutoTuner extends OpMode {
         double now = timer.seconds();
         double dt = now - lastTime;
         if (dt <= 0) dt = 1e-6;
-
         lastTime = now;
         follower.update();
 
         telemetry.addData("done", done);
-        telemetry.addData("dt", String.format("%.6f s", dt));
+        telemetry.addData("dt", String.format(Locale.US, "%.6f s", dt));
 
         if (!done) {
             times.add(timer.seconds());
             angularVelocities.add(Math.abs(follower.velocity().omega));
-            telemetry.addData("angular velocity (rad/s)", String.format("%.4f", angularVelocities.get(angularVelocities.size() - 1)));
+            telemetry.addData("angular velocity (rad/s)",
+                    String.format(Locale.US, "%.4f", angularVelocities.get(angularVelocities.size() - 1)));
 
             if (timer.seconds() >= RUNTIME) {
                 done = true;
                 systemIdentification();
                 follower.manual(0, 0, 0);
-                telemetry.addData("elapsed time (s)", String.format("%.4f", timer.seconds()));
             } else {
                 follower.manual(0, 0, POWER);
                 telemetry.update();
                 return;
             }
-
-            telemetry.update();
         }
 
         lambda_small = tau * ALPHA_SMALL;
@@ -92,17 +100,14 @@ public class HeadingAutoTuner extends OpMode {
         double kPLarge = getkP(lambda_large);
         double kDSmall = getkD(lambda_small);
         double kPSmall = getkP(lambda_small);
-
         double feedforward = BETA / K;
 
-        telemetry.addData("Large Coefficients", "kP=" + String.format("%.4f", kPLarge) + ", kD=" + String.format("%.4f", kDLarge));
-        telemetry.addData("Small Coefficients", "kP=" + String.format("%.4f", kPSmall) + ", kD=" + String.format("%.4f", kDSmall));
-        telemetry.addData("Heading Feedforward", "k=" + String.format("%.4f", feedforward));
-        telemetry.addLine();
-        telemetry.addData("Est tau (s)", String.format("%.4f", tau));
-        telemetry.addData("Est K (rad/s per power)", String.format("%.4f", K));
-        telemetry.addData("Lambda large (s)", String.format("%.4f", lambda_large));
-        telemetry.addData("Lambda small (s)", String.format("%.4f", lambda_small));
+        telemetry.addLine("--- headingController (DoM D on measured ω) ---");
+        telemetry.addData("Large", String.format(Locale.US, "kP=%.4f, kD=%.4f", kPLarge, kDLarge));
+        telemetry.addData("Small", String.format(Locale.US, "kP=%.4f, kD=%.4f", kPSmall, kDSmall));
+        telemetry.addData("headingFeedforward k", String.format(Locale.US, "%.4f", feedforward));
+        telemetry.addData("Est tau (s)", String.format(Locale.US, "%.4f", tau));
+        telemetry.addData("Est K (rad/s per power)", String.format(Locale.US, "%.4f", K));
         telemetry.update();
     }
 
@@ -115,43 +120,38 @@ public class HeadingAutoTuner extends OpMode {
     }
 
     private void systemIdentification() {
-        int N = times.size();
-        if (N < 4) {
+        int n = times.size();
+        if (n < 4) {
             throw new IllegalArgumentException("Failed calibration.");
         }
 
-        int start = Math.max(0, N - SAMPLES);
-        double samples = N - start;
+        int start = Math.max(0, n - SAMPLES);
         double sum = 0;
-        for (int i = start; i < N; i++) sum += angularVelocities.get(i);
-        double A = sum / samples;
-        this.K = A / POWER;
+        for (int i = start; i < n; i++) sum += angularVelocities.get(i);
+        this.K = (sum / (n - start)) / POWER;
 
         List<Double> y = new ArrayList<>();
         List<Double> x = new ArrayList<>();
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < n; i++) {
             double vel = angularVelocities.get(i) / POWER;
-            if (vel > 0.8 * K) continue;
-            if (vel < 0.1 * K) continue;
+            if (vel > 0.8 * K || vel < 0.1 * K) continue;
             y.add(Math.log(K - vel));
             x.add(times.get(i));
         }
         double[] linReg = linearFit(x.stream().toArray(Double[]::new), y.stream().toArray(Double[]::new));
         if (linReg[1] == 0) throw new IllegalArgumentException("Failed calibration.");
-        this.tau = -1.0/linReg[1];
+        this.tau = -1.0 / linReg[1];
     }
 
     public double[] linearFit(Double[] x, Double[] y) {
         int n = x.length;
         double sumX = 0, sumXY = 0, sumY = 0, sumX2 = 0;
-
         for (int i = 0; i < n; i++) {
             sumX += x[i];
             sumY += y[i];
             sumXY += x[i] * y[i];
             sumX2 += x[i] * x[i];
         }
-
         double m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
         double b = (sumY - m * sumX) / n;
         return new double[] {b, m};
